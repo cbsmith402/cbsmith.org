@@ -1,0 +1,61 @@
+﻿@using System.IO
+@using System.Web.Hosting
+@using System.Text
+@using Lucene.Net.Linq;
+@using System.Text.RegularExpressions;
+
+
+@{
+	//Start with the Blog sub-folder
+	var relative = "~/Blog";
+	DirectoryInfo blogFolder = new DirectoryInfo(HostingEnvironment.MapPath(relative));
+
+	using (var session = LuceneProvider.Instance.OpenSession<BlogPost>())
+	{
+		foreach (var blogFile in blogFolder.GetFiles("*.md"))
+		{
+			//Read it in as Markdown
+			var input = File.ReadAllText(blogFile.FullName);
+
+			var fileName = blogFile.Name.Substring(0, blogFile.Name.Length - blogFile.Extension.Length);
+			var outFile = Path.Combine(blogFolder.FullName, fileName + ".cshtml");
+
+			var md = new MarkdownDeep.Markdown();
+			md.SafeMode = false;
+			md.ExtraMode = true;
+			md.UrlBaseLocation = "/Blog/" + fileName + "/";
+
+			//If the file was already generated, skip it
+			if (File.Exists(outFile))
+			{
+				continue;
+			}
+
+			//Process the metadata out
+			var post = new BlogPost(fileName, input);
+
+			//Index it to Lucene
+			session.Add(post);
+
+			//Transform to HTML
+			var output = md.Transform(post.Content);
+
+			//Build the templated file
+			StringBuilder sb = new StringBuilder();
+
+			sb.AppendLine("@{");
+			sb.AppendLine("\tLayout = \"_ItemTemplate.cshtml\";");
+			sb.AppendLine("}");
+
+			sb.AppendLine("@section bodytext {");
+			sb.AppendLine(output);
+			sb.AppendLine("}");
+
+			//Write it out as a CSHMTL
+
+			File.WriteAllText(outFile, sb.ToString());
+		}
+
+		session.Commit();
+	}
+}

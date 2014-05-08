@@ -1,0 +1,25 @@
+﻿@using System.Web.Hosting
+@using Lucene.Net;
+@using Lucene.Net.Index;
+@using Lucene.Net.Store;
+@using Lucene.Net.Analysis.Standard;
+@using Lucene.Net.Linq;
+
+@{
+    Layout = "~/_Layout.cshtml";
+}
+
+@using Humanizer;
+
+@{
+	var posts = LuceneProvider.ReadOnlyInstance.AsQueryable<BlogPost>();
+
+	foreach (BlogPost post in posts.Take(10).Skip(0))
+	{
+		<div>
+			<h2><a href="@post.Url">@post.Title</a></h2>
+			<h5>Posted @post.PostedDate.Humanize(false)</h5>
+			<p>@post.Summary</p>
+		</div>
+	}
+}
